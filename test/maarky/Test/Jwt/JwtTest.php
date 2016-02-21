@@ -833,6 +833,21 @@ class JwtTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider jwtProvider
      */
+    public function testValidate_withJwt_withSecretAsCallback($header, $claims, $secret, $jwt, $pass)
+    {
+        $jwtObj = new Jwt($jwt, function() use($secret) { return $secret; });
+        if($pass) {
+            $valid = $jwtObj->isValid();
+            $this->assertTrue($valid);
+        } else {
+            $valid = $jwtObj->isValid();
+            $this->assertFalse($valid);
+        }
+    }
+
+    /**
+     * @dataProvider jwtProvider
+     */
     public function testValidate_withoutJwt($header, $claims, $secret, $jwt, $pass)
     {
         $jwtObj = new Jwt(['header' => $header, 'claims' => $claims], $secret);
@@ -842,5 +857,57 @@ class JwtTest extends \PHPUnit_Framework_TestCase
         } else {
             $this->assertFalse($valid);
         }
+    }
+
+    public function testAddValidator_oneValidator()
+    {
+        $jwt = $this->jwtProvider()[0]['jwt'];
+        $jwt = new Jwt($jwt);
+        $validator = function() { return true; };
+        $jwt->addValidator($validator);
+        $this->assertEquals([$validator], $jwt->getValidators());
+    }
+
+    public function testAddValidator_twoValidators()
+    {
+        $jwt = $this->jwtProvider()[0];
+        $jwt = new Jwt($jwt['jwt'], $jwt['secret']);
+        $validator1 = function() { return true; };
+        $validator2 = function() { return false; };
+        $jwt->addValidator($validator1);
+        $jwt->addValidator($validator2);
+        $this->assertEquals([$validator1, $validator2], $jwt->getValidators());
+    }
+
+    public function testAddValidators_twoValidators()
+    {
+        $jwt = $this->jwtProvider()[0]['jwt'];
+        $jwt = new Jwt($jwt);
+        $validators = [
+            function() { return true; },
+            function() { return false; }
+        ];
+        $jwt->addValidators($validators);
+        $this->assertEquals($validators, $jwt->getValidators());
+    }
+
+    public function testValidate_withCustomValidator_valid()
+    {
+        $jwt = $this->jwtProvider()[0];
+        $jwt = new Jwt($jwt['jwt'], $jwt['secret']);
+        $validator = function() { return true; };
+        $jwt->addValidator($validator);
+        $this->assertTrue($jwt->isValid());
+    }
+
+    public function testValidate_withCustomValidator_invalid()
+    {
+        $jwt = $this->jwtProvider()[0];
+        $jwt = new Jwt($jwt['jwt'], $jwt['secret']);
+        $validator = function(Jwt $jwt) {
+            return 'HS256' != $jwt->getAlgo()->getOrElse('');
+        };
+        $jwt->addValidator($validator);
+        $this->assertFalse($jwt->isValid());
     }
 }

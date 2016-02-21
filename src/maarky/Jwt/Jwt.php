@@ -26,7 +26,11 @@ class Jwt
      * @var string
      */
     protected $sourceJwt;
+    /**
+     * @var string/callable
+     */
     protected $secret;
+    protected $validators = [];
 
     /**
      * Jwt constructor.
@@ -380,6 +384,29 @@ class Jwt
         if($this->getClaim('iat')->isDefined() && $this->getClaim('nbf')->isDefined() && (int) $this->getClaim('iat')->get() > (int) $this->getClaim('nbf')->get()) {
             return false;
         }
+
+        foreach($this->validators as $validator) {
+            if(!$validator($this)) {
+                return false;
+            }
+        }
         return $jwt === $this->encode();
+    }
+
+    public function addValidator(callable $validator)
+    {
+        $this->validators[] = $validator;
+    }
+
+    public function addValidators(array $validators)
+    {
+        foreach($validators as $validator) {
+            $this->addValidator($validator);
+        }
+    }
+
+    public function getValidators()
+    {
+        return $this->validators;
     }
 }
