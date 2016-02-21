@@ -1,0 +1,7 @@
+/.idea
+/Jwt.iml
+/.vagrant
+/composer.lock
+/vendor
+/sandbox
+.DS_Store
