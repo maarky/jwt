@@ -865,7 +865,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
         $jwt = new Jwt($jwt);
         $validator = function() { return true; };
         $jwt->addValidator($validator);
-        $this->assertEquals([$validator], $jwt->getValidators());
+        $this->assertEquals([$validator], $jwt->getValidators()->get());
     }
 
     public function testAddValidator_twoValidators()
@@ -876,7 +876,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
         $validator2 = function() { return false; };
         $jwt->addValidator($validator1);
         $jwt->addValidator($validator2);
-        $this->assertEquals([$validator1, $validator2], $jwt->getValidators());
+        $this->assertEquals([$validator1, $validator2], $jwt->getValidators()->get());
     }
 
     public function testAddValidators_twoValidators()
@@ -888,7 +888,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
             function() { return false; }
         ];
         $jwt->addValidators($validators);
-        $this->assertEquals($validators, $jwt->getValidators());
+        $this->assertEquals($validators, $jwt->getValidators()->get());
     }
 
     public function testValidate_withCustomValidator_valid()
