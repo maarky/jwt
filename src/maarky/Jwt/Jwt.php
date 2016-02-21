@@ -393,11 +393,21 @@ class Jwt
         return $jwt === $this->encode();
     }
 
+    /**
+     * Add a validator.
+     *
+     * @param callable $validator
+     */
     public function addValidator(callable $validator)
     {
         $this->validators[] = $validator;
     }
 
+    /**
+     * Add multiple validators.
+     *
+     * @param array $validators
+     */
     public function addValidators(array $validators)
     {
         foreach($validators as $validator) {
@@ -405,7 +415,12 @@ class Jwt
         }
     }
 
-    public function getValidators()
+    /**
+     * Get a list of all custom validators.
+     *
+     * @return array
+     */
+    public function getValidators(): array
     {
         return $this->validators;
     }
