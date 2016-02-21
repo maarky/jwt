@@ -250,7 +250,7 @@ class Jwt
      *
      * @return array
      */
-    public function getSupportedAlgos()
+    public function getSupportedAlgos(): array
     {
         return array_keys($this->algos);
     }
@@ -420,8 +420,11 @@ class Jwt
      *
      * @return array
      */
-    public function getValidators(): array
+    public function getValidators(): ArrayOption
     {
-        return $this->validators;
+        if(empty($this->validators)) {
+            return new ArrayNone;
+        }
+        return new ArraySome($this->validators);
     }
 }
