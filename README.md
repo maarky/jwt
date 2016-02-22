@@ -285,6 +285,9 @@ Providing a callback can be useful if you need something from the claims in orde
     
     $jwt = new Jwt($providedJwt, $findSecret);
     $jwt->isValid();
+    
+If the secret is a callable the function will only be called once. Once it is called the secret will be replaced by the
+functions return value.
 
 ####getSecret(): StringOption
 
