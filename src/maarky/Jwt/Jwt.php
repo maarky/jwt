@@ -124,10 +124,28 @@ class Jwt
      */
     public function getHeaders(): ArrayOption
     {
-        if(empty($this->header['typ'])) {
-            $this->addHeader('typ', 'JWT');
+        if(empty($this->header)) {
+            return new ArrayNone;
         }
         return new ArraySome($this->header);
+    }
+
+    /**
+     * Get all headers, adding typ if necessary
+     *
+     * @return array
+     */
+    public function getAllHeaders(): array
+    {
+        return $this->getHeaders()
+                    ->orElse(new ArraySome(['typ' => 'JWT']))
+                    ->map(function(array $headers) {
+                        if(array_key_exists('typ', $headers)) {
+                            return $headers;
+                        }
+                        $headers['type'] = 'JWT';
+                        return $headers;
+        })->get();
     }
 
     /**

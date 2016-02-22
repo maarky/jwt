@@ -473,10 +473,29 @@ class JwtTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf('maarky\Option\Type\Arr\Some', $jwtObj->getHeaders());
     }
 
-    public function testJwt_getHeaders_noneSet_isSome()
+    public function testJwt_getHeaders_noneSet_isNone()
     {
         $jwtObj = new Jwt();
-        $this->assertInstanceOf('maarky\Option\Type\Arr\Some', $jwtObj->getHeaders());
+        $this->assertInstanceOf('maarky\Option\Type\Arr\None', $jwtObj->getHeaders());
+    }
+
+    public function testJwt_getAllHeaders_noneSet_isArray()
+    {
+        $jwtObj = new Jwt();
+        $this->assertTrue(is_array($jwtObj->getAllHeaders()));
+    }
+
+    public function testJwt_getAllHeaders_noneSet_hasTyp()
+    {
+        $jwtObj = new Jwt();
+        $this->assertEquals(['typ' => 'JWT'], $jwtObj->getAllHeaders());
+    }
+
+    public function testJwt_getAllHeaders_areSet()
+    {
+        $headers = ['typ' => 'JWT', 'alg' => 'HS256'];
+        $jwtObj = new Jwt(['header' => $headers]);
+        $this->assertEquals($headers, $jwtObj->getAllHeaders());
     }
 
     public function testJwt_getHeaders_fromJwt()
@@ -673,8 +692,6 @@ class JwtTest extends \PHPUnit_Framework_TestCase
     public function testJwt_justHeaders_ignoresType()
     {
         $header = $this->jwtProvider()[0]['header'];
-        $useHeader = $header;
-        $useHeader['typ'] = 'XXX';
         $jwtObj = new Jwt(['header' => $header]);
         $this->assertEquals($header, $jwtObj->getHeaders()->get());
     }
@@ -690,8 +707,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
     {
         $this->setExpectedException('maarky\Jwt\Exception', Exception::CONSTRUCTOR_WITH_DOUBLE_ALGO);
         $header = $this->jwtProvider()[0]['header'];
-        $jwtObj = new Jwt(['header' => $header, 'algo' => $header['alg']]);
-        //$this->assertEquals($header, $jwtObj->getHeaders());
+        new Jwt(['header' => $header, 'algo' => $header['alg']]);
     }
 
     public function testJwt_unsupportedAlgo()

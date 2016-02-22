@@ -60,6 +60,9 @@ This library requires PHP 7. Since many people may not yet be working with PHP 7
 provisioning that installs php7.0-cli and Xdebug. It will also install Composer and PHPUnit. You can use this to run the 
 unit tests and as a sandbox.
 
+Options
+-------
+
 It also uses my Option library. Documentation on options can be found [here](https://github.com/maarky/option).
 
 Installation
@@ -196,13 +199,9 @@ Documentation on Some and None can be found [here](https://github.com/maarky/opt
 
 ####getHeaders(): ArrayOption
 
-Retrieve all headers as a Some. This will never provide a None since the typ header will be added if it doesn't already
-exist. Documentation on Some and None can be found [here](https://github.com/maarky/option).
+Retrieve all headers as an array Option. Documentation on Some and None can be found [here](https://github.com/maarky/option).
 
     use maarky\Jwt\Jwt;
-    
-    $jwt = new Jwt();
-    $jwt->getHeaders(); //returns Some(['typ' => 'JWT'])
     
     $headers = [
         'typ' => 'JWT',
@@ -211,6 +210,18 @@ exist. Documentation on Some and None can be found [here](https://github.com/maa
     $jwt = new Jwt($headers);
     $jwt->getHeaders(); //returns Some(['typ' => 'JWT', 'alt' => 'HS256'])
 
+####getAllHeaders(): array
+
+Retrieve all headers including the typ header, even if it hasn't been set.
+
+    use maarky\Jwt\Jwt;
+        
+    $jwt = new Jwt();
+    $jwt->getAllHeaders(); //returns ['typ' => 'JWT']
+    
+    $jwt = new Jwt(['header' => ['alg' => 'HS256']]);
+    $jwt->getAllHeaders(); //returns ['alg' => 'HS256', 'typ' => 'JWT']
+    
 ####removeHeader(string $header)
 
 If you want to remove a header call this method and provide the key for the header you want to remove.
@@ -233,7 +244,7 @@ If you want to remove a header call this method and provide the key for the head
 ####getClaims(): ArrayOption  
 ####removeClaim(string $claim)
 
-These methods work exactly like the header methods except that no claims are automatically added.
+These methods work exactly like the respective header methods.
 
     use maarky\Jwt\Jwt;
         
@@ -369,7 +380,14 @@ is unique. The validators must accept the Jwt object as its only argument and re
 
 #####addValidator(callable $validator)
 
-Add a single validator.
+Add a single validator. For example, make sure the JWT was issued no more than five minutes ago.
+
+    $jwt->addValidator(function(Jwt $jwt) {
+        return $jwt->getClaim('iat')
+                   ->orElse(new Some(0))
+                   ->filter(function($value) { return $value + (60 * 5) > time(); })
+                   ->isDefined();
+    });
 
 #####addValidators(array $validators)
 
