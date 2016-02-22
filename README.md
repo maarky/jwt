@@ -277,7 +277,7 @@ Providing a callback can be useful if you need something from the claims in orde
     $providedJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiY2xhaW0gQSIsImIiOiJjbGFpbSBCIiwiYyI6ImNsYWltIEMiLCJwdWJrIjoiams0NTM0a2pia2o0NSJ9.EZqOXe1dizNCK3zlSTDV54KflwJx2MZg6qdvSLr7Q_0';
     $findSecret = function(Jwt $jwt) use($repository) {
         return $jwt->getClaim('pubk')
-                   ->map(function($value) { return $repository->findSecret($value); })
+                   ->flatMap(function($value) { return $repository->findSecret($value); })
                    ->getOrElse('');
     };
     
