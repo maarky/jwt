@@ -82,12 +82,12 @@ class Jwt
 
     protected function encodeBase64(string $input)
     {
-        return str_replace('=', '', strtr(base64_encode($input), '+/', '-_'));
+        return rtrim(strtr(base64_encode($input), '+/', '-_'), '=');
     }
 
     protected function decodeBase64(string $input)
     {
-        $decoded = base64_decode($input, true);
+        $decoded = base64_decode(str_pad(strtr($input, '-_', '+/'), strlen($input) % 4, '=', STR_PAD_RIGHT));
         if(false === $decoded) {
             throw new Exception(Exception::CANNOT_DECODE_BASE64);
         }
@@ -143,7 +143,7 @@ class Jwt
                         if(array_key_exists('typ', $headers)) {
                             return $headers;
                         }
-                        $headers['type'] = 'JWT';
+                        $headers['typ'] = 'JWT';
                         return $headers;
         })->get();
     }
@@ -380,12 +380,12 @@ class Jwt
             $jwt = $sourceJwt->get();
         }
 
-        if($this->getHeaders()
-                ->filter(function($header) { return count($header) >= 2; })
-                ->filter(function($header) { return !empty($header['alg']) && array_key_exists($header['alg'], $this->algos); })
-                ->filter(function($header) { return !empty($header['typ']) && $header['typ'] === 'JWT'; })
-                ->isEmpty()
-        ) {
+        $headers = $this->getAllHeaders();
+        if(count($headers) < 2) {
+            return false;
+        } elseif(empty($headers['alg']) || !array_key_exists($headers['alg'], $this->algos)) {
+            return false;
+        } elseif(empty($headers['typ']) || $headers['typ'] != 'JWT') {
             return false;
         }
 
