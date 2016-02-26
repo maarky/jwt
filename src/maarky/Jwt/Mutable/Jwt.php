@@ -10,10 +10,13 @@ use maarky\Jwt\Jwt as JwtInterface;
 class Jwt extends BaseJwt
 {
 
-    public function __construct(array $header = [], array $claims = [], $secret = null)
+    public function __construct(array $claims = [], $secret = null, array $header = [])
     {
         if(!array_key_exists('typ', $header)) {
             $header['typ'] = 'JWT';
+        }
+        if(!array_key_exists('alg', $header)) {
+            $header['alg'] = 'HS256';
         }
         $this->header = $header;
         $this->claims = $claims;

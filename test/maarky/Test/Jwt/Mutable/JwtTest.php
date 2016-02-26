@@ -20,7 +20,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testConstruct()
     {
-        new Jwt($this->header, $this->claims, $this->secret);
+        new Jwt($this->claims, $this->secret, $this->header);
     }
 
     public function testConstruct_empty()
@@ -35,17 +35,17 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testConstruct_onlyClaims()
     {
-        new Jwt([], ['a' => 1]);
+        new Jwt(['a' => 1]);
     }
 
     public function testConstruct_onlySecret()
     {
-        new Jwt([], [], 'a');
+        new Jwt([], 'a');
     }
 
     public function testConstruct_noSecret()
     {
-        new Jwt($this->header, $this->claims);
+        new Jwt($this->claims, null, $this->header);
     }
 
     public function testConstruct_badSecret()
@@ -56,12 +56,12 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testConstruct_secretIsCallable()
     {
-        new Jwt($this->header, $this->claims, function() {});
+        new Jwt($this->claims, function() {}, $this->header);
     }
 
     public function testConstruct_notTrusted()
     {
-        $jwt = new Jwt($this->header, $this->claims, function() {});
+        $jwt = new Jwt($this->claims, function() {}, $this->header);
         $this->assertFalse($jwt->isTrusted());
     }
 
@@ -73,32 +73,33 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testAddHeader()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->addHeader('a', 1);
         $this->assertEquals(1, $jwt->getHeader('a')->get());
     }
 
     public function testRemoveHeader()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->removeHeader('alg');
         $this->assertTrue($jwt->getHeader('alg')->isEmpty());
     }
 
     public function testAddHeaders_noneAtConsruct()
     {
-        $jwt = new Jwt([], $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret);
         $headers = [
             'a' => 1,
             'typ' => 'JWT'
         ];
         $jwt->addHeaders($headers);
+        $headers = array_merge(['alg' => 'HS256'], $headers);
         $this->assertSame($headers, $jwt->getHeaders()->get());
     }
 
     public function testAddHeaders()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $headers = [
             'a' => 1,
             'b' => 2
@@ -109,14 +110,14 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testAddClaim()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->addClaim('a', 1);
         $this->assertEquals(1, $jwt->getClaim('a')->get());
     }
 
     public function testAddClaims()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $claims = [
             'a' => 1,
             'b' => 2
@@ -127,65 +128,65 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testRemoveClaim()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->removeClaim('sub');
         $this->assertTrue($jwt->getClaim('sub')->isEmpty());
     }
 
     public function testGetMutable()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $this->assertSame($jwt, $jwt->getMutable());
     }
 
     public function testEncode()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $this->assertEquals($this->srcJwt, $jwt->encode());
     }
 
     public function testGetImmutable()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $this->assertInstanceOf('maarky\Jwt\Immutable\Jwt', $jwt->getImmutable());
     }
 
     public function testGetImmutable_notTrusted()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $this->assertFalse($jwt->getImmutable()->isTrusted());
     }
 
     public function testIsValid()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $this->assertTrue($jwt->isValid());
     }
 
     public function testIsValid_badType()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->setType('xxx');
         $this->assertFalse($jwt->isValid());
     }
 
     public function testIsValid_badAlgo()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->setAlgo('xxx');
         $this->assertFalse($jwt->isValid());
     }
 
     public function testSetAlgo()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->setAlgo('HS512');
         $this->assertEquals('HS512', $jwt->getHeader('alg')->get());
     }
 
     public function testSetAlgo_getInRightOrder()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $alg = 'HS512';
         $jwt->setAlgo($alg);
         $expected = $this->header;
@@ -196,7 +197,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testSetType_getInRightOrder()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $type = 'jwt';
         $jwt->setType($type);
         $expected = $this->header;
@@ -207,14 +208,14 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testSetType_upper()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->setType('JWT');
         $this->assertEquals('JWT', $jwt->getHeader('typ')->get());
     }
 
     public function testSetType_lower()
     {
-        $jwt = new Jwt($this->header, $this->claims, $this->secret);
+        $jwt = new Jwt($this->claims, $this->secret, $this->header);
         $jwt->setType('jwt');
         $this->assertEquals('jwt', $jwt->getHeader('typ')->get());
     }
