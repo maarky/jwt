@@ -137,7 +137,7 @@ class Jwt extends BaseJwt
 
     public function getMutable(): MutableJwt
     {
-        $jwt = new MutableJwt($this->getHeaders()->get(), $this->getClaims()->get());
+        $jwt = new MutableJwt($this->getClaims()->get(), null, $this->getHeaders()->get());
         if(!is_null($this->secret)) {
             $jwt->setSecret($this->getSecret()->get());
         }

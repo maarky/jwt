@@ -187,7 +187,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testIsValid_false_expired()
     {
-        $mutableJwt = new MutableJwt($this->header, $this->claims, $this->secret);
+        $mutableJwt = new MutableJwt($this->claims, $this->secret, $this->header);
         $mutableJwt->addClaim('exp', time() - 1);
         $jwt = new Jwt($mutableJwt->encode(), $this->secret);
         $this->assertFalse($jwt->isValid());
@@ -195,7 +195,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testIsValid_false_nbf()
     {
-        $mutableJwt = new MutableJwt($this->header, $this->claims, $this->secret);
+        $mutableJwt = new MutableJwt($this->claims, $this->secret, $this->header);
         $mutableJwt->addClaim('nbf', time() + 1);
         $jwt = new Jwt($mutableJwt->encode(), $this->secret);
         $this->assertFalse($jwt->isValid());
@@ -203,7 +203,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testIsValid_false_iat()
     {
-        $mutableJwt = new MutableJwt($this->header, $this->claims, $this->secret);
+        $mutableJwt = new MutableJwt($this->claims, $this->secret, $this->header);
         $mutableJwt->addClaim('iat', time() + 1);
         $jwt = new Jwt($mutableJwt->encode(), $this->secret);
         $this->assertFalse($jwt->isValid());
@@ -211,7 +211,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testIsValid_false_iatAndNbf()
     {
-        $mutableJwt = new MutableJwt($this->header, $this->claims, $this->secret);
+        $mutableJwt = new MutableJwt($this->claims, $this->secret, $this->header);
         $mutableJwt->addClaim('iat', time() - 1);
         $mutableJwt->addClaim('nbf', time() - 2);
         $jwt = new Jwt($mutableJwt->encode(), $this->secret);
@@ -220,7 +220,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testIsValid_false_customValidator()
     {
-        $mutableJwt = new MutableJwt($this->header, $this->claims, $this->secret);
+        $mutableJwt = new MutableJwt($this->claims, $this->secret, $this->header);
         $jwt = new Jwt($mutableJwt->encode(), $this->secret);
         $jwt->addValidator(function() {return false;});
         $this->assertFalse($jwt->isValid());
@@ -228,7 +228,7 @@ class JwtTest extends \PHPUnit_Framework_TestCase
 
     public function testIsValid_true_customValidator()
     {
-        $mutableJwt = new MutableJwt($this->header, $this->claims, $this->secret);
+        $mutableJwt = new MutableJwt($this->claims, $this->secret, $this->header);
         $jwt = new Jwt($mutableJwt->encode(), $this->secret);
         $jwt->addValidator(function() {return true;});
         $this->assertTrue($jwt->isValid());
