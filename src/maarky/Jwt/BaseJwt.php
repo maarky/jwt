@@ -147,7 +147,7 @@ abstract class BaseJwt implements Jwt
     {
         $json = json_decode($this->decodeBase64($encoded), true);
         if(is_null($json)) {
-            throw new TypeError('Bad JSON');
+            return [];
         }
         return $json;
     }
