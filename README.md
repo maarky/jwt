@@ -2,7 +2,9 @@ PHP JWT
 =======
 
 A JSON Web Token, or JWT (pronounced "jot"), is a means of authentication. It allows a requester to create their own
-authentication token that can be validated by the recipient. For details go [here](https://self-issued.info/docs/draft-ietf-oauth-json-web-token.html).
+authentication token that can be validated by the recipient. For details go [here](https://jwt.io/introduction/).
+
+This implementation only supports HMAC secrets. It does not support RSA public and private keys.
 
 About JWTs
 ----------
@@ -25,7 +27,9 @@ Consider the following JWT:
     ^----------------------------------^ ^--------------------------------------------------------^
      Header                               Claims
      
-     Hashing the above using the HS256 hashing algorithm using the key "secret" provides the following base64 encoded signature:
+     Hashing the above with the HS256 hashing algorithm using the key "secret" provides the following base64 encoded
+     signature:
+     
      bkg61YGDQRi8mHk5ZtyEk0VEflEp5ZMfg71WQsEOaQE
      
      Put it all together and you get the following JWT:
@@ -56,6 +60,9 @@ This implementation supports the following hashing algorithms:
 Requirements
 ============
 
+PHP 7
+-----
+
 This library requires PHP 7. Since many people may not yet be working with PHP 7 this library includes a Vagrantfile with
 provisioning that installs php7.0-cli and Xdebug. It will also install Composer and PHPUnit. You can use this to run the 
 unit tests and as a sandbox.
@@ -78,79 +85,101 @@ Documentation
 Basics
 ------
 
-There are two reasons for creating a Jwt object.
+This library provides two Jwt classes, one mutable and the other immutable. The idea is that when you receive a JWT you
+will validate it using the immutable Jwt class because you do not want to change it before testing its validity. However,
+when creating a JWT you may need to change it beyond what you set in the constructor.
 
-1. To create a token to authenticate with another service.
-1. To validate a token provided by somebody trying to access your service.
+Both the mutable and immutable classes implement the same Jwt interface which means that they both have methods allowing
+you to add and remove headers and claims. The difference between how these methods are implemented is that the mutable
+class allows you to change the object directly whereas the immutable class creates a mutable version of itself, applies
+the change to that mutable version and returns it. So no change is ever made to the immutable Jwt class. 
 
-You can create a token in the following way:
+Both the mutable and immutable classes provide methods to retrieve a mutable and immutable version of themselves. If you
+call the getMutable() method on the mutable class or the getImmutable() method on the immutable class they will simply
+return themselves. If you call them on the opposite classes they will create a new mutable or immutable version of
+themselves and return that. When creating an immutable JWT from a mutable JWT using the getImmutable() method the
+immutable Jwt object will be marked as untrusted. This is to let you know that the Jwt is not guaranteed to match a JWT
+provided by the client so its validation cannot be trusted. Also, all mutable Jwt objects are set as untrusted.
 
-    use maarky\Jwt\Jwt;
+    use maarky\Jwt\Immutable\Jwt as ImmutableJwt;
+    use maarky\Jwt\Mutable\Jwt as MutableJwt;
     
-    $header = [
-        'alg' => 'HS256',
-        'typ' => 'JWT'
-    ];
-    $claims = [
-        'a' => 'claim A',
-        'b' => 'claim B',
-        'c' => 'claim C'
-    ];
+    $immutableJwt = new ImmutableJwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEyMzQ1Nn0.iJGpiQ7KAWGnbAkmKchWn99ZGjQX7kY0PwgwP_u9Jbw', 'secret');
+    $immutableJwt->isTrusted(); //true
     
-    $jwt = new Jwt(['claims' => $claims, 'header' => $header], 'secret');
-    echo $jwt->encode();
+    $mutableJwt = $immutableJwt->getMutable();
+    $mutableJwt->isTrusted(); //false
+    $immutableJwt_2 = $mutableJwt->getImmutable();
+    $immutableJwt_2->isTrusted(); //false
     
-    //or
-    
-    $jwt = new Jwt(['claims' => $claims], 'secret');
-    $jwt->setAlgo('HS256');
-    echo $jwt->encode();
-    
-    //the following JWT will be echoed:
-    //eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiY2xhaW0gQSIsImIiOiJjbGFpbSBCIiwiYyI6ImNsYWltIEMifQ.bkg61YGDQRi8mHk5ZtyEk0VEflEp5ZMfg71WQsEOaQE
+    $mutableJwt_2 = new MutableJwt();
+    $mutableJwt_2->isTrusted(); //false
 
-In the above example we provide the header and claims in an array and the secret is provided as a string. In the second
-example above we do not provide a header. Instead, we provide the algorithm to the setAlgo() method. This adds it to the
-header. Since there is only one valid value for the type it is added automatically when encoding if it has not already
-been supplied.
+No methods exist to change whether or not a Jwt object is trusted.
 
-If your service receives that JWT you can validate it like so:
+If you're wondering what's the point in making changes to an immutable Jwt consider a scenario where you provide a JWT
+to the client. When they make a request using that JWT you might issue them a new JWT with an updated expiration.
 
-    use maarky\Jwt\Jwt;
+    $immutableJwt = new ImmutableJwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEyMzQ1Nn0.iJGpiQ7KAWGnbAkmKchWn99ZGjQX7kY0PwgwP_u9Jbw', 'secret');
+    if($immutableJwt->isValid()) {
+        $response->setJwt($immutableJwt->addHeader('exp', time() + (60 * 10)->encode());
+    }
     
-    $encodedJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiY2xhaW0gQSIsImIiOiJjbGFpbSBCIiwiYyI6ImNsYWltIEMifQ.bkg61YGDQRi8mHk5ZtyEk0VEflEp5ZMfg71WQsEOaQE';
-    $jwt = new Jwt($encodedJwt, 'secret');
-    $jwt->isValid(); //true
-    
-    $jwt = new Jwt($encodedJwt, 'bad secret');
-    $jwt->isValid(); //false because the wrong secret was used
 
-In this example we create a Jwt object by providing a complete JWT and the secret. When validating the JWT we are
-basically checking that the header and claims will produce the same signature given the provided secret.
+Also, when creating a mutable object it will set the typ header to "JWT" and the alg header to "HS256" if no values were
+provided. These values can be changed later using the addHeader(), addHeaders(), setType() and setAlgo() methods.
 
 Creating a Jwt Object
 ---------------------
 
-You have a couple of options when instantiating the Jwt class.
+Here's how you would validate a JWT:
 
-If the first argument is a string it must be a JWT.
+    use maarky\Jwt\Immutable\Jwt;
+    
+    $jwt = new Jwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEyMzQ1Nn0.iJGpiQ7KAWGnbAkmKchWn99ZGjQX7kY0PwgwP_u9Jbw', 'secret');
+    $jwt->isValid(); //returns true
+    
+    $jwt = new Jwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEyMzQ1Nn0.iJGpiQ7KAWGnbAkmKchWn99ZGjQX7kY0PwgwP_u9Jbw');
+    $jwt->setSecret('secret');
+    $jwt->isValid(); //returns true
+    
+    $jwt = new Jwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEyMzQ1Nn0.iJGpiQ7KAWGnbAkmKchWn99ZGjQX7kY0PwgwP_u9Jbw', 'bad secret');
+    $jwt->isValid(); //returns false because the secret is bad
+    
+    $jwt = new Jwt('XXXeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEyMzQ1Nn0.iJGpiQ7KAWGnbAkmKchWn99ZGjQX7kY0PwgwP_u9Jbw', 'secret');
+    $jwt->isValid(); //returns false because the header has changed
+    
+    $jwt = new Jwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXeyJzdWIiOjEyMzQ1Nn0.iJGpiQ7KAWGnbAkmKchWn99ZGjQX7kY0PwgwP_u9Jbw', 'secret');
+    $jwt->isValid(); //returns false because the claims have changed
 
-If the first argument is an array it may contain the following keys: claims, header and algo.
+Here's how you would create a new JWT:
 
-* claims: an array of claims
-* header: an array of headers
-* algo: a string equal to "HS256", "HS384" or "HS512"
+    use maarky\Jwt\Mutable\Jwt;
+    
+    $header = [
+        'typ' => 'JWT',
+        'alg' => 'HS256'
+    ];
+    $claims = [
+        'sub' => 123456
+    ];
+    $secret = 'secret';
+    
+    $jwt = new Jwt($claims, $secret, $header);
+    
+    //or 
+    
+    $jwt = new Jwt($claims, $secret); //no header provided so the defaults are used
+    $jwt->isValid(); //returns true
+    $jwt->encode(); //returns the encoded JWT
 
-If your header array contains an "alg" key you must not supply an algo.
+You can also create an empty mutable Jwt object:
 
-The second argument is where you provide the secret. The secret must be a string or a callback function. If a callback
-is provided it will be passed the Jwt object and must return a string. If the secret is a callback it will be called
-when calling the getSecret() method. This method is only called internally when encoding the Jwt object and when
-validating the object so a secret must be provided before either of those occur. 
-
-You can also create an empty Jwt object:
-
-    $jwt = new maarky\Jwt\Jwt();
+    $jwt = new \maarky\Jwt\Mutable\Jwt();
+    $jwt->addHeaders($header)
+        ->addClaims($claims)
+        ->setSecret($secret)
+        ->encode();
 
 Jwt Methods
 -----------
@@ -160,15 +189,21 @@ Jwt object.
 
 ###Header Methods
 
-####addHeader(string $header, $value)
+####addHeader(string $header, $value): Jwt
 
 Provide the header key and a value.
 
+Calling this method on a mutable Jwt updates the object directly.  
+Calling this method on an immutable Jwt creates a mutable Jwt with the new headers.
+
     $jwt->addHeader('header_key', 'header value');
 
-####addHeaders(array $headers)
+####addHeaders(array $headers): Jwt
 
 Use this method if you have an array of headers that you want to provide all at once.
+
+Calling this method on a mutable Jwt updates the object directly.  
+Calling this method on an immutable Jwt creates a mutable Jwt with the new headers.
 
     $headers = [
         'typ' => 'JWT',
@@ -180,7 +215,6 @@ Use this method if you have an array of headers that you want to provide all at 
 ####getHeader(string $header): Option
 
 Retrieve a specific header. Returns a Some if the header is found, otherwise a None.  
-Documentation on Some and None can be found [here](https://github.com/maarky/option).
 
     $headers = [
         'typ' => 'JWT',
@@ -199,55 +233,35 @@ Documentation on Some and None can be found [here](https://github.com/maarky/opt
 
 ####getHeaders(): ArrayOption
 
-Retrieve all headers as an array Option. Documentation on Some and None can be found [here](https://github.com/maarky/option).
+Retrieve all headers as an array Option.
 
-    use maarky\Jwt\Jwt;
-    
-    $headers = [
-        'typ' => 'JWT',
-        'alg' => 'HS256'
-    ];
-    $jwt = new Jwt($headers);
+    $jwt = new Mutable\Jwt($headers);
     $jwt->getHeaders(); //returns Some(['typ' => 'JWT', 'alt' => 'HS256'])
-
-####getAllHeaders(): array
-
-Retrieve all headers including the typ header, even if it hasn't been set.
-
-    use maarky\Jwt\Jwt;
-        
-    $jwt = new Jwt();
-    $jwt->getAllHeaders(); //returns ['typ' => 'JWT']
     
-    $jwt = new Jwt(['header' => ['alg' => 'HS256']]);
-    $jwt->getAllHeaders(); //returns ['alg' => 'HS256', 'typ' => 'JWT']
-    
-####removeHeader(string $header)
+####removeHeader(string $header): Jwt
 
 If you want to remove a header call this method and provide the key for the header you want to remove.
 
-    use maarky\Jwt\Jwt;
-    
-    $headers = [
-        'typ' => 'JWT',
-        'alg' => 'HS256'
-    ];
-    $jwt = new Jwt(['header' => $headers]);
+Calling this method on a mutable Jwt updates the object directly.  
+Calling this method on an immutable Jwt creates a mutable Jwt with the new headers.
+
+    $jwt = new Mutable\Jwt();
     $jwt->removeHeader('alg');
     $jwt->getHeaders(); //returns Some(['typ' => 'JWT'])
 
 ###Claims Methods
 
-####addClaim(string $claim, $value)  
-####addClaims(array $claim)  
+####addClaim(string $claim, $value): Jwt
+####addClaims(array $claim): Jwt  
 ####getClaim(string $claim): Option  
 ####getClaims(): ArrayOption  
-####removeClaim(string $claim)
+####removeClaim(string $claim): Jwt
 
 These methods work exactly like the respective header methods.
 
-    use maarky\Jwt\Jwt;
-        
+Calling the add and remove methods on a mutable Jwt updates the object directly.  
+Calling the add and remove methods on an immutable Jwt creates a mutable Jwt with the new claims.
+
     $jwt = new Jwt();
     $jwt->getClaims(); //returns array None
     
@@ -263,7 +277,7 @@ These methods work exactly like the respective header methods.
 
 ###Secret Methods
 
-####setSecret($secret)
+####setSecret($secret): Jwt
 
 When setting a secret you can provide a string or a callback function. If a callback is provided it will be passed the
 Jwt object and must return a string. If the secret is a callback it will be called when calling the getSecret() method.
@@ -272,8 +286,6 @@ provided before either of those occur.
 
 Providing a callback can be useful if you need something from the claims in order to retrieve the secret. For example:
 
-    use maarky\Jwt\Jwt;
-    
     $providedJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiY2xhaW0gQSIsImIiOiJjbGFpbSBCIiwiYyI6ImNsYWltIEMiLCJwdWJrIjoiams0NTM0a2pia2o0NSJ9.EZqOXe1dizNCK3zlSTDV54KflwJx2MZg6qdvSLr7Q_0';
     $findSecret = function(Jwt $jwt) use($repository) {
         return $jwt->getClaim('pubk')
@@ -284,16 +296,14 @@ Providing a callback can be useful if you need something from the claims in orde
     $jwt = new Jwt($providedJwt, $findSecret);
     $jwt->isValid();
     
-If the secret is a callable the function will only be called once. Once it is called the secret will be replaced by the
-functions return value.
+If the secret is a callable the function will only be called once. Once it is called the callback will be replaced by
+the functions return value.
 
 ####getSecret(): StringOption
 
 Returns the secret as a string Some, or a None if there is no secret. If the secret is a callback function the callback
 will be called.
 
-    use maarky\Jwt\Jwt;
-    
     $jwt = new Jwt();
     $jwt->getSecret(); //returns None
     $jwt->setSecret('secret');
@@ -309,69 +319,72 @@ will be called.
 
 Returns all of the algorithms that can be used.
 
-####getAlgo(): StringOption
-
-Returns the algorithm as a string Some or a string None if no algorithm has been set.
-
-####setAlgo(string $algo)
+####setAlgo(string $algo): Jwt
 
 Sets the algorithm to be used for creating the JWT signature. It must be one of the values provided by
 getSupportedAlgos(), otherwise a maarky\Jwt\Exception will be thrown.
 
-    use maarky\Jwt\Jwt;
-    
     $jwt = new Jwt();
     $jwt->getSupportedAlgos(); //returns ['HS256', 'HS384', 'HS512']
-    $jwt->getAlgo(); //returns string None
+    $jwt->getHeader('alg'); //returns string None
     $jwt->setAlgo('HS999'); // throws maarky\Jwt\Exception
     $jwt->setAlgo('HS256');
-    $jwt->getAlgo(); // returns string Some('HS256')
+    $jwt->getHeader('alg'); // returns string Some('HS256')
 
 ###Encoding JWT
 
 In order to encode a JWT you must have provided the following:
 
 * At least one claim.
-* A hashing algorithm.
+* A hashing algorithm (default "HS256" on mutable Jwt).
+* A type (default "JWT" on mutable Jwt).
 * A secret.
 
+For example:
 
-    $jwt = new \maarky\Jwt\Jwt();
-    $jwt->setAlgo('HS256');
+    $jwt = new Mutable\Jwt();
     $jwt->addClaim('a', 'A');
     $jwt->setSecret('secret');
+    echo $jwt->encode();
+    //echoes eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiQSJ9.4qVGOwVxKEQJP576JoiEJg1cgvB86r6CCZI_RsYAUlI
+    
+    $jwt = new Immutable\Jwt('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiQSJ9.4qVGOwVxKEQJP576JoiEJg1cgvB86r6CCZI_RsYAUlI', 'secret');
     echo $jwt->encode();
     //echoes eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiQSJ9.4qVGOwVxKEQJP576JoiEJg1cgvB86r6CCZI_RsYAUlI
 
 ###Validating A JWT
 
-When validating a JWT the same requirements as encoding a JWT are in place. In addition, you must also provide a JWT to
-validate against. If you created a Jwt object by providing a JWT as a string to the constructor you can call the
-isValid() method without providing a JWT. However, if the Jwt object was not created in this way then you must provide a
-JWT to the isValid() method.
+When validating a JWT the same requirements as encoding a JWT are in place. However, mutable and immutable Jwt objects
+are not validated the same. A mutable Jwt performs the following tests: 
 
-    $validJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiQSJ9.4qVGOwVxKEQJP576JoiEJg1cgvB86r6CCZI_RsYAUlI';
-    $invalidJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiQSJ9.XXX';
-    $jwt = new \maarky\Jwt\Jwt($validJwt, 'secret');
-    $jwt->isValid(); //returns true
-    
-    $jwt = new \maarky\Jwt\Jwt();
-    $jwt->setAlgo('HS256');
-    $jwt->addClaim('a', 'A');
-    $jwt->setSecret('secret');
-    $jwt->isValid($validJwt); //returns true
-    $jwt->isValid($invalidJwt); //returns false
-
-When validating a JWT it performs the following checks:
-
-1. Makes sure a JWT was provided to validate against.
+1. Make sure a secret has been set
 1. Make sure there are at least two headers and that the header contains a valid algorithm and type.
 1. If an expiration (exp) claim is provided, makes sure that date is in the future.
 1. If a not before (nbf) claim is provided, make sure that date is now or in the past.
-1. If a issues at (iat) claim is set, make sure that date is in the past.
+1. If a issued at (iat) claim is set, make sure that date is in the past.
 1. If an issued at (iat) and a not before (nbf) claim is set, make sure that issued at is older than not before.
 1. Runs any custom validators that were provided, if any.
-1. Encode the Jwt object and make sure it is equal to the JWT that you are comparing against.
+
+An immutable Jwt performs the same tests against the data provided in the base64 encoded header and claimset. If those
+tests pass it will then create a signature using the base64 encoded header and claimset and the secret. It validates if
+this signature matches what was provided to the constructor.
+
+    $validJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiQSJ9.4qVGOwVxKEQJP576JoiEJg1cgvB86r6CCZI_RsYAUlI';
+    $invalidJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiQSJ9.XXX';
+    $jwt = new \maarky\Jwt\Immutable\Jwt($validJwt, 'secret');
+    $jwt->isValid(); //returns true
+    
+    $jwt = new \maarky\Jwt\Immutable\Jwt($invalidJwt, 'secret');
+    $jwt->isValid(); //returns false
+    
+    $jwt = new \maarky\Jwt\Mutable\Jwt();
+    $jwt->addClaim('a', 'A');
+    $jwt->setSecret('secret');
+    $jwt->isValid(); //returns true
+
+The general idea is that validating an immutable Jwt tells you that the request is authentic. Validating a mutable Jwt
+tells you whether or not it is ready to be encoded. After all, there's no point in encoding and using a Jwt that will
+not be accepted by the recipient.
 
 ####Custom Validators
 
@@ -379,20 +392,20 @@ You can add custom validators if necessary. This can be useful if you want to ma
 checking the issued at claim) or that the JWT has never been used before by checking that the public JWT ID claim (jti)
 is unique. The validators must accept the Jwt object as its only argument and return a boolean.
 
-#####addValidator(callable $validator)
+#####addValidator(callable ...$validators): Jwt
 
-Add a single validator. For example, make sure the JWT was issued no more than five minutes ago.
+Add one or more validators. For example, make sure the JWT was issued no more than five minutes ago.
 
     $jwt->addValidator(function(Jwt $jwt) {
         return $jwt->getClaim('iat')
-                   ->orElse(new Some(0))
                    ->filter(function($value) { return $value + (60 * 5) > time(); })
                    ->isDefined();
     });
-
-#####addValidators(array $validators)
-
-Add multiple validators. Each validator provided must be a callable.
+    
+    // add many validators by providing as many arguments as you need
+    $jwt->addValidator($function1, $function2, $junction3);
+    //or unpack an array of validators
+    $jwt->addValidator(...[$function1, $function2]);
 
 #####getValidators(): ArrayOption
 
