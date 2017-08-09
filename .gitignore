@@ -4,4 +4,5 @@
 /composer.lock
 /vendor
 /sandbox
+*.log
 .DS_Store
