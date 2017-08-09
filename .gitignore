@@ -4,5 +4,6 @@
 /composer.lock
 /vendor
 /sandbox
+/.phpstorm_helpers
 *.log
 .DS_Store
