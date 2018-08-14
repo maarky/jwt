@@ -60,7 +60,8 @@ abstract class BaseJwt implements Jwt
 
     public function getHeader(string $key): Option
     {
-        return Option::new($this->header[$key]);
+        $header = array_key_exists($key, $this->header) ? $this->header[$key] : null;
+        return Option::new($header);
     }
 
     public function getHeaders(): array
@@ -80,7 +81,8 @@ abstract class BaseJwt implements Jwt
 
     public function getClaim(string $key): Option
     {
-        return Option::new($this->claims[$key]);
+        $claim = array_key_exists($key, $this->claims) ? $this->claims[$key] : null;
+        return Option::new($claim);
     }
 
     public function getClaims(): array
