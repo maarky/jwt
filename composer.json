@@ -16,7 +16,7 @@
 
   },
   "require-dev": {
-    "phpunit/phpunit": "6.x"
+    "phpunit/phpunit": "^7.2"
   },
   "autoload": {
     "psr-4": { "maarky\\": "src/maarky/" }
